@@ -36,10 +36,40 @@ function load_mailbox(mailbox) {
   document.querySelector('#emails-view').style.display = 'block';
   document.querySelector('#compose-view').style.display = 'none';
 
-  // Show the mailbox name
+  // Clear out the emails-view and show the mailbox name
   document.querySelector('#emails-view').innerHTML = `<h3>${
     mailbox.charAt(0).toUpperCase() + mailbox.slice(1)
   }</h3>`;
+
+  // Fetch the emails for this mailbox from the API
+  fetch(`/emails/${mailbox}`)
+    .then((response) => response.json())
+    .then((emails) => {
+      console.log(emails);
+
+      // Loop through each email and create a "box" for it
+      emails.forEach((email) => {
+        // Create a container div for this email
+        const element = document.createElement('div');
+        element.className = 'list-group-item';
+
+        // Display sender, subject, and timestamp
+        element.innerHTML = `
+          <strong>${email.sender}</strong> &nbsp; ${email.subject}
+          <span class="text-muted float-right">${email.timestamp}</span>
+        `;
+
+        // Style based on whether the email has been read
+        if (email.read) {
+          element.style.backgroundColor = '#e9ecef'; // light gray
+        } else {
+          element.style.backgroundColor = 'white'; // white for unread email
+        }
+
+        // Add the element to the page
+        document.querySelector('#emails-view').append(element);
+      });
+    });
 }
 
 // Logic to send email
@@ -53,7 +83,7 @@ function send_email(event) {
   const subject = document.querySelector('#compose-subject').value;
   const body = document.querySelector('#compose-body').value;
 
-  // Send a POST request with the values
+  // Send a POST request with the values of the form
   fetch('/emails', {
     method: 'POST',
     body: JSON.stringify({
