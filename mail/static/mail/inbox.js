@@ -115,9 +115,19 @@ function load_email(email_id, mailbox) {
           }).then(() => load_mailbox('inbox'));
         });
         document.querySelector('#email-view').append(archiveButton);
+
+        // Reply button
+        const replyButton = document.createElement('button');
+        replyButton.className = 'btn btn-sm btn-outline-success mt-2 ml-2';
+        replyButton.innerText = 'Reply';
+        replyButton.addEventListener('click', function () {
+          reply_email(email);
+        });
+        document.querySelector('#email-view').append(replyButton);
       }
     });
 }
+
 
 
 // Logic to send email
@@ -151,4 +161,27 @@ function send_email(event) {
     .catch((error) => {
       console.error('Error:', error);
     });
+}
+
+
+function reply_email(email) {
+  // Show compose view and hide other views
+  document.querySelector('#emails-view').style.display = 'none';
+  document.querySelector('#compose-view').style.display = 'block';
+  document.querySelector('#email-view').style.display = 'none';
+
+  // Pre-fill recipients (reply goes back to sender)
+  document.querySelector('#compose-recipients').value = email.sender;
+
+  // Pre-fill subject
+  let subject = email.subject;
+  if (!subject.startsWith('Re:')) {
+    subject = 'Re: ' + subject;
+  }
+  document.querySelector('#compose-subject').value = subject;
+
+  // Pre-fill body with reference to original email
+  document.querySelector(
+    '#compose-body'
+  ).value = `\n\nOn ${email.timestamp}, ${email.sender} wrote:\n${email.body}`;
 }
