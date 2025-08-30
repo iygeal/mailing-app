@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', function () {
+  // By default, load the inbox
+  load_mailbox('inbox');
   // Use buttons to toggle between views
   document
     .querySelector('#inbox')
@@ -15,23 +17,7 @@ document.addEventListener('DOMContentLoaded', function () {
   document
     .querySelector('#compose-form')
     .addEventListener('submit', send_email);
-
-  // By default, load the inbox
-  load_mailbox('inbox');
 });
-
-function compose_email() {
-  // Show compose view and hide other views
-  document.querySelector('#emails-view').style.display = 'none';
-  document.querySelector('#compose-view').style.display = 'block';
-  document.querySelector('#email-view').style.display = 'none';
-
-  // Clear out composition fields
-  document.querySelector('#compose-recipients').value = '';
-  document.querySelector('#compose-subject').value = '';
-  document.querySelector('#compose-body').value = '';
-}
-
 
 function load_mailbox(mailbox) {
   // Show the mailbox and hide other views
@@ -46,9 +32,9 @@ function load_mailbox(mailbox) {
 
   // Load mailbox emails
   fetch(`/emails/${mailbox}`)
-    .then(response => response.json())
-    .then(emails => {
-      emails.forEach(email => {
+    .then((response) => response.json())
+    .then((emails) => {
+      emails.forEach((email) => {
         const element = document.createElement('div');
         element.className = 'email-item border p-2 mb-2';
         element.style.cursor = 'pointer';
@@ -66,6 +52,18 @@ function load_mailbox(mailbox) {
         document.querySelector('#emails-view').append(element);
       });
     });
+}
+
+function compose_email() {
+  // Show compose view and hide other views
+  document.querySelector('#emails-view').style.display = 'none';
+  document.querySelector('#compose-view').style.display = 'block';
+  document.querySelector('#email-view').style.display = 'none';
+
+  // Clear out composition fields
+  document.querySelector('#compose-recipients').value = '';
+  document.querySelector('#compose-subject').value = '';
+  document.querySelector('#compose-body').value = '';
 }
 
 function load_email(email_id, mailbox) {
@@ -93,18 +91,20 @@ function load_email(email_id, mailbox) {
       `;
       document.querySelector('#email-view').append(details);
 
-      // Mark as read
-      if (!email.read) {
-        fetch(`/emails/${email_id}`, {
-          method: 'PUT',
-          body: JSON.stringify({ read: true }),
-        });
-      }
-
-      // Archive / Unarchive button (only if not Sent mailbox)
+      // Action buttons (only if not Sent mailbox)
       if (mailbox !== 'sent') {
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'mt-3';
+
+        // Reply button
+        const replyButton = document.createElement('button');
+        replyButton.className = 'btn btn-sm btn-outline-success mr-2';
+        replyButton.innerText = 'Reply';
+        replyButton.addEventListener('click', () => reply_email(email));
+
+        // Archive / Unarchive button
         const archiveButton = document.createElement('button');
-        archiveButton.className = 'btn btn-sm btn-outline-primary mt-2';
+        archiveButton.className = 'btn btn-sm btn-outline-primary mr-2';
         archiveButton.innerText = email.archived ? 'Unarchive' : 'Archive';
         archiveButton.addEventListener('click', function () {
           fetch(`/emails/${email_id}`, {
@@ -114,55 +114,39 @@ function load_email(email_id, mailbox) {
             }),
           }).then(() => load_mailbox('inbox'));
         });
-        document.querySelector('#email-view').append(archiveButton);
 
-        // Reply button
-        const replyButton = document.createElement('button');
-        replyButton.className = 'btn btn-sm btn-outline-success mt-2 ml-2';
-        replyButton.innerText = 'Reply';
-        replyButton.addEventListener('click', function () {
-          reply_email(email);
+        // Mark as Read / Unread button
+        const readButton = document.createElement('button');
+        readButton.className = 'btn btn-sm btn-outline-secondary';
+        readButton.innerText = email.read ? 'Mark as Unread' : 'Mark as Read';
+        readButton.addEventListener('click', function () {
+          fetch(`/emails/${email_id}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+              read: !email.read,
+            }),
+          }).then(() => load_mailbox(mailbox));
         });
-        document.querySelector('#email-view').append(replyButton);
+
+        // Append all buttons
+        actionsDiv.appendChild(replyButton);
+        actionsDiv.appendChild(archiveButton);
+        actionsDiv.appendChild(readButton);
+
+        document.querySelector('#email-view').append(actionsDiv);
+      }
+
+      // Mark as read automatically (AFTER buttons are built & UI synced)
+      if (!email.read) {
+        fetch(`/emails/${email_id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ read: true }),
+        });
+        // Update local object so button text matches
+        email.read = true;
       }
     });
 }
-
-
-
-// Logic to send email
-function send_email(event) {
-
-  // Stop form from submitting by default so send_email handles it
-  event.preventDefault();
-
-  // Get the form values
-  const recipients = document.querySelector('#compose-recipients').value;
-  const subject = document.querySelector('#compose-subject').value;
-  const body = document.querySelector('#compose-body').value;
-
-  // Send a POST request with the values of the form
-  fetch('/emails', {
-    method: 'POST',
-    body: JSON.stringify({
-      recipients: recipients,
-      subject: subject,
-      body: body,
-    }),
-  })
-    .then((response) => response.json())
-    .then((result) => {
-      // Log result for debugging
-      console.log(result);
-
-      // Load sent mail box
-      load_mailbox('sent');
-    })
-    .catch((error) => {
-      console.error('Error:', error);
-    });
-}
-
 
 function reply_email(email) {
   // Show compose view and hide other views
