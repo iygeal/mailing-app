@@ -87,7 +87,7 @@ function load_email(email_id, mailbox) {
         <p><strong>Subject:</strong> ${email.subject}</p>
         <p><strong>Timestamp:</strong> ${email.timestamp}</p>
         <hr>
-        <p>${email.body}</p>
+        <pre style="white-space: pre-wrap;">${email.body}</pre>
       `;
       document.querySelector('#email-view').append(details);
 
@@ -148,6 +148,38 @@ function load_email(email_id, mailbox) {
     });
 }
 
+// Logic to send email
+function send_email(event) {
+  // Stop form from submitting by default so send_email handles it
+  event.preventDefault();
+
+  // Get the form values
+  const recipients = document.querySelector('#compose-recipients').value;
+  const subject = document.querySelector('#compose-subject').value;
+  const body = document.querySelector('#compose-body').value;
+
+  // Send a POST request with the values of the form
+  fetch('/emails', {
+    method: 'POST',
+    body: JSON.stringify({
+      recipients: recipients,
+      subject: subject,
+      body: body,
+    }),
+  })
+    .then((response) => response.json())
+    .then((result) => {
+      // Log result for debugging
+      console.log(result);
+
+      // Load sent mail box
+      load_mailbox('sent');
+    })
+    .catch((error) => {
+      console.error('Error:', error);
+    });
+}
+
 function reply_email(email) {
   // Show compose view and hide other views
   document.querySelector('#emails-view').style.display = 'none';
@@ -164,8 +196,14 @@ function reply_email(email) {
   }
   document.querySelector('#compose-subject').value = subject;
 
+  // Quote the original body line by line with ">"
+  const quotedBody = email.body
+    .split('\n')
+    .map((line) => `> ${line}`)
+    .join('\n');
+
   // Pre-fill body with reference to original email
   document.querySelector(
     '#compose-body'
-  ).value = `\n\nOn ${email.timestamp}, ${email.sender} wrote:\n${email.body}`;
+  ).value = `\n\nOn ${email.timestamp},\n${email.sender} wrote:\n\n${quotedBody}`;
 }
